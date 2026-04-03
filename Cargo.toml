@@ -1,0 +1,25 @@
+[package]
+name = "big_word"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+arrayvec = "0.7.6"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+prime_bag = "0.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
+
+unicode-normalization = "0.1.25"
+unicode-segmentation = "1.13.2"
+ustr = "1.1.0"
+
+
+[dev-dependencies]
+test-case = "3.3.1"
+
+[[bin]]
+name = "generator"
+test = false
+bench = false
