@@ -1,4 +1,6 @@
 use arrayvec::ArrayVec;
+use serde::{Deserialize, Serialize};
+use strum::{EnumCount, EnumIs, EnumIter};
 
 use crate::character::Character;
 
@@ -10,7 +12,7 @@ pub const MAX_WORD_LENGTH: usize = 24;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WordChars(pub ArrayVec<Character, MAX_WORD_LENGTH>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIs, EnumCount, EnumIter, Serialize, Deserialize)]
 pub enum PartOfSpeech {
     /// An substantive
     Noun,
@@ -24,7 +26,7 @@ pub enum PartOfSpeech {
 
 pub struct BasicWordList {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct WordId(u32);
 
 impl WordId {
@@ -32,7 +34,7 @@ impl WordId {
         Self(_0)
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SynsetId(u32);
 
 impl SynsetId {
@@ -41,21 +43,21 @@ impl SynsetId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Word {
     pub id: WordId,
     /// The Word ranked by popularity.
     /// The most popular word is rank 0.
     pub popularity: u32,
     pub text: String,
-    pub chars: WordChars,
-    /// If this word is an inflected form, the bare form of the word
-    pub bare_forms: Vec<WordChars>,
-
-    pub synsets: Vec<SynsetId>,
+    /// The different meanings of the word
+    pub meanings: Vec<SynsetId>,
+    /// Is this word only an inflected form of another word
+    pub is_inflected: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SynSet {
     pub id: SynsetId,
     pub definition: String,
@@ -67,7 +69,7 @@ pub struct SynSet {
     //pub words: Vec<>
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord, Hash)]
 pub enum SynsetRelType {
     /// an opposite word
     Antonym,
@@ -125,7 +127,7 @@ pub enum SynsetRelType {
     PertainymOrDerivedFromAdjective, // fixme
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SynsetRelation {
     pub to_id: SynsetId,
     pub synset_rel_type: SynsetRelType,

@@ -1,120 +1,164 @@
 pub mod wordnet;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fs,
 };
 
-use big_word::{SynSet, SynsetId, SynsetRelType, SynsetRelation, Word, WordChars, WordId};
+use arrayvec::ArrayVec;
+use big_word::{
+    SynsetId, SynsetRelType, SynsetRelation, WordId,
+    character::{Character, normalize_characters_array},
+};
+use strum::IntoEnumIterator;
 
-use crate::wordnet::Relationship;
+use crate::wordnet::{
+    wordnet_db::LoadMode,
+    wordnet_types::{self, Pos},
+};
 
 fn main() {
     let basic_words_text =
         fs::read_to_string(r"C:\Source\english_word_list\google-20000-english.txt").unwrap();
-    let basic_words: BTreeSet<&str> = basic_words_text.lines().collect();
+    let basic_words: Vec<&str> = basic_words_text.lines().collect();
+    let dict_dir = ::std::path::Path::new(r#"C:\Source\english_word_list\Wordnet"#);
+    let word_net = wordnet::wordnet_db::WordNet::load_with_mode(&dict_dir, LoadMode::Mmap).unwrap();
 
-    let wn = wordnet::Database::open(&::std::path::Path::new(
-        r#"C:\Source\rust\wordnet_stuff\wordnet"#,
-    ))
-    .unwrap();
+    let morphy = crate::wordnet::wordnet_morphy::Morphy::load(dict_dir).unwrap();
 
-    let mut synsets: BTreeMap<wordnet::SenseId, SynsetId> = BTreeMap::new();
-    let mut words: BTreeMap<WordChars, (String, big_word::WordId)> = BTreeMap::new();
+    let mut synsets: BTreeMap<wordnet_types::SynsetId, SynsetId> = BTreeMap::new();
+    let mut used_synset_ids: BTreeSet<wordnet_types::SynsetId> = BTreeSet::default();
+    //let mut words: BTreeMap<WordChars, (big_word::WordId, HashSet<String>)> = BTreeMap::new();
     let mut next_word_id = 0u32;
+    let mut next_synset_id = 0u32;
 
-    let all_senses: Vec<(wordnet::SenseId, wordnet::Sense<'_>)> = wn.all_senses();
+    let all_senses: Vec<wordnet_types::Synset> = word_net.iter_synsets().collect();
 
-    for (index, (sense_id, sense)) in all_senses.iter().enumerate() {
-        let synset_id = SynsetId::new(index as u32);
-        synsets.insert(*sense_id, synset_id);
+    for sense in all_senses.iter() {
+        synsets.insert(sense.id, SynsetId::new(next_synset_id));
+        next_synset_id += 1;
 
-        for word in sense.synonyms.iter() {
-            if let Ok(av) = big_word::character::normalize_characters_array(&word.word) {
-                match words.entry(WordChars(av)) {
-                    std::collections::btree_map::Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert((word.word.clone(), WordId::new(next_word_id)));
-                        next_word_id += 1;
-                    }
-                    std::collections::btree_map::Entry::Occupied(..) => {}
-                }
-            }
-        }
+        // for word in sense.words.iter() {
+        //     if let Ok(av) = big_word::character::normalize_characters_array(&word.text) {
+        //         match words.entry(WordChars(av)) {
+        //             std::collections::btree_map::Entry::Vacant(vacant_entry) => {
+        //                 vacant_entry.insert((
+        //                     WordId::new(next_word_id),
+        //                     HashSet::from_iter([word.text.to_string()]),
+        //                 ));
+        //                 next_word_id += 1;
+        //             }
+        //             std::collections::btree_map::Entry::Occupied(..) => {}
+        //         }
+        //     }
+        // }
     }
 
     let mut big_word_words: Vec<big_word::Word> = vec![];
     let mut big_word_synsets: Vec<big_word::SynSet> = vec![];
+    let mut popularity = 0;
+    let mut used_char_arrays: HashSet<ArrayVec<Character, 24>, _> = HashSet::new();
+    'basic_words: for basic_word in basic_words.iter().take(10000000000) {
+        let Ok(av) = big_word::character::normalize_characters_array::<24>(&*basic_word) else {
+            println!("Word '{basic_word}' has too many characters");
+            continue 'basic_words;
+        };
 
-    'basic_words: for basic_word in basic_words.iter().take(100) {
-        let Ok(av) = big_word::character::normalize_characters_array(&*basic_word.word) else {continue 'basic_words;};
-        
-        wn.senses(*basic_word)
+        if !used_char_arrays.insert(av) {
+            continue 'basic_words;
+        }
+        let id = WordId::new(next_word_id);
+        next_word_id += 1;
 
+        // let Some((word_id, set)) = words.get(&WordChars(av.clone())) else {
+        //     println!("Word '{basic_word}' is not in wordnet");
+        //     continue 'basic_words;
+        // };
+
+        let mut meanings = vec![];
+        let mut is_inflected = true;
+
+        for pos in Pos::iter() {
+            for lemma in morphy.lemmas_for(pos, &basic_word, |p, s| word_net.lemma_exists(p, s)) {
+                if lemma.source.is_surface() {
+                    is_inflected = true;
+                }
+                if let Some(index_entry) = word_net.index_entry(lemma.pos, &lemma.lemma) {
+                    for offset in index_entry.synset_offsets.iter().copied() {
+                        let ssi = wordnet_types::SynsetId { pos, offset };
+                        used_synset_ids.insert(ssi);
+
+                        if let Some(ssi) = synsets.get(&ssi) {
+                            meanings.push(*ssi);
+                        }
+                    }
+                }
+            }
+        }
+        meanings.sort();
+        meanings.dedup();
+
+        let word = big_word::Word {
+            id,
+            popularity: popularity,
+            text: basic_word.to_string(),
+            meanings,
+            is_inflected,
+        };
+
+        popularity += 1;
+
+        big_word_words.push(word);
     }
 
-    for (index, sense) in all_senses.into_iter().enumerate() {
+    let big_word_map: BTreeMap<ArrayVec<Character, 24>, WordId> = big_word_words
+        .iter()
+        .map(|x| (normalize_characters_array::<24>(&x.text).unwrap(), x.id))
+        .collect();
 
-        //sense.pointers.iter().map(|x|x.)
+    for ssi in used_synset_ids.iter().copied() {
+        if let Some(synset) = word_net.get_synset(ssi) {
+            let words: Vec<WordId> = synset
+                .words
+                .iter()
+                .flat_map(|lemma| normalize_characters_array::<24>(&lemma.text))
+                .flat_map(|arr| big_word_map.get(&arr))
+                .copied()
+                .collect();
 
-        //sense.pointers.iter().map(|x|x.part_of_speech)
+            let relations: Vec<big_word::SynsetRelation> = synset
+                .pointers
+                .iter()
+                .filter(|x| used_synset_ids.contains(&x.target))
+                .flat_map(|pointer| {
+                    synsets
+                        .get(&pointer.target)
+                        .copied()
+                        .map(|to_id| SynsetRelation {
+                            to_id,
+                            synset_rel_type: convert_relationship(pointer.symbol),
+                        })
+                })
+                .collect();
 
-        //let words = sense.synonyms.
-        // synsets.push(SynSet {
-        //     id: SynsetId::new(index as u32),
-        //     words: (),
-        //     definition: sense.gloss,
-        //     part_of_speech: convert_part_of_speech(&sense.part_of_speech),
-        //     relations: todo!(),
-        // });
+            if let Some(id) = synsets.get(&ssi).copied() {
+                big_word_synsets.push(big_word::SynSet {
+                    id,
+                    definition: synset.gloss.definition.to_string(),
+                    part_of_speech: convert_synset_type(&synset.synset_type),
+                    words,
+                    relations,
+                });
+            }
+        }
     }
 
-    // let mut results: Vec<Senses> = vec![];
+    let words_yaml = serde_yaml::to_string(&big_word_words).unwrap();
 
-    // for sense in all_senses {
-    //     let count = sense
-    //         .synonyms
-    //         .iter()
-    //         .filter(|x| x.word.len() > 3)
-    //         .filter(|x| basic_words.contains(x.word.as_str()))
-    //         .count();
-    //     if count >= 6 {
-    //         let s = Senses {
-    //             count: count,
-    //             gloss: sense.gloss,
-    //             words: sense
-    //                 .synonyms
-    //                 .iter()
-    //                 .filter(|x| x.word.len() > 3)
-    //                 .map(|x| x.word.clone())
-    //                 .collect(),
-    //         };
-    //         results.push(s);
-    //     }
-    // }
+    std::fs::write("words.yaml", words_yaml.as_str()).unwrap();
 
-    // results.sort_by_key(|x| (std::cmp::Reverse(x.count), x.gloss.clone()));
-    // results.dedup_by_key(|x| x.gloss.clone());
+    let synsets_yaml = serde_yaml::to_string(&big_word_synsets).unwrap();
 
-    // println!("{} results found", results.len());
-
-    // let mut output = String::new();
-
-    // for line in results.into_iter().take(1000) {
-    //     use std::fmt::Write;
-    //     writeln!(
-    //         output,
-    //         "{}\t{}\t{}",
-    //         line.count,
-    //         line.words
-    //             .iter()
-    //             .map(|x| x.as_str())
-    //             .collect::<Vec<_>>()
-    //             .join(", "),
-    //         line.gloss
-    //     )
-    //     .unwrap();
-    // }
-
-    // std::fs::write("output.tsv", output).unwrap();
+    std::fs::write("synsets.yaml", synsets_yaml.as_str()).unwrap();
 }
 
 #[derive(Debug, Clone)]
@@ -124,44 +168,54 @@ pub struct Senses {
     pub words: Vec<String>,
 }
 
-fn convert_part_of_speech(pos: &wordnet::PartOfSpeech) -> big_word::PartOfSpeech {
+fn convert_synset_type(pos: &wordnet::wordnet_types::SynsetType) -> big_word::PartOfSpeech {
     match pos {
-        wordnet::PartOfSpeech::Noun => big_word::PartOfSpeech::Noun,
-        wordnet::PartOfSpeech::Adjective => big_word::PartOfSpeech::Adjective,
-        wordnet::PartOfSpeech::AdjectiveSatellite => big_word::PartOfSpeech::Adjective,
-        wordnet::PartOfSpeech::Verb => big_word::PartOfSpeech::Verb,
-        wordnet::PartOfSpeech::Adverb => big_word::PartOfSpeech::Adverb,
+        wordnet::wordnet_types::SynsetType::Noun => big_word::PartOfSpeech::Noun,
+        wordnet::wordnet_types::SynsetType::Adj => big_word::PartOfSpeech::Adjective,
+        wordnet_types::SynsetType::AdjSatellite => big_word::PartOfSpeech::Adjective,
+        wordnet::wordnet_types::SynsetType::Verb => big_word::PartOfSpeech::Verb,
+        wordnet::wordnet_types::SynsetType::Adv => big_word::PartOfSpeech::Adverb,
     }
 }
 
-fn convert_relationship(rel: &Relationship) -> SynsetRelType {
-    match rel {
-        Relationship::Antonym => SynsetRelType::Antonym,
-        Relationship::Hypernym => SynsetRelType::Hypernym,
-        Relationship::InstanceHypernym => SynsetRelType::InstanceHypernym,
-        Relationship::Hyponym => SynsetRelType::Hyponym,
-        Relationship::MemberHolonym => SynsetRelType::MemberHolonym,
-        Relationship::SubstanceHolonym => SynsetRelType::SubstanceHolonym,
-        Relationship::PartHolonym => SynsetRelType::PartHolonym,
-        Relationship::MemberMeronym => SynsetRelType::MemberMeronym,
-        Relationship::SubstanceMeronym => SynsetRelType::SubstanceMeronym,
-        Relationship::PartMeronym => SynsetRelType::PartMeronym,
-        Relationship::Attribute => SynsetRelType::Attribute,
-        Relationship::DerivationallyRelated => SynsetRelType::DerivationallyRelated,
-        Relationship::DomainOfTopic => SynsetRelType::DomainOfTopic,
-        Relationship::MemberOfTopic => SynsetRelType::MemberOfTopic,
-        Relationship::DomainOfRegion => SynsetRelType::DomainOfRegion,
-        Relationship::MemberOfRegion => SynsetRelType::MemberOfRegion,
-        Relationship::DomainOfUsage => SynsetRelType::DomainOfUsage,
-        Relationship::MemberOfUsage => SynsetRelType::MemberOfUsage,
-        Relationship::Entailment => SynsetRelType::Entailment,
-        Relationship::Cause => SynsetRelType::Cause,
-        Relationship::AlsoSee => SynsetRelType::AlsoSee,
-        Relationship::VerbGroup => SynsetRelType::VerbGroup,
-        Relationship::SimilarTo => SynsetRelType::SimilarTo,
-        Relationship::VerbParticiple => SynsetRelType::VerbParticiple,
-        Relationship::PertainymOrDerivedFromAdjective => {
-            SynsetRelType::PertainymOrDerivedFromAdjective
-        }
+fn convert_part_of_speech(pos: &wordnet::wordnet_types::Pos) -> big_word::PartOfSpeech {
+    match pos {
+        wordnet::wordnet_types::Pos::Noun => big_word::PartOfSpeech::Noun,
+        wordnet::wordnet_types::Pos::Adj => big_word::PartOfSpeech::Adjective,
+
+        wordnet::wordnet_types::Pos::Verb => big_word::PartOfSpeech::Verb,
+        wordnet::wordnet_types::Pos::Adv => big_word::PartOfSpeech::Adverb,
+    }
+}
+
+fn convert_relationship(pointer_symbol: &str) -> SynsetRelType {
+    match pointer_symbol {
+        "!" => SynsetRelType::Antonym,
+        "@" => SynsetRelType::Hypernym,
+        "@i" => SynsetRelType::InstanceHypernym,
+        "~" => SynsetRelType::Hyponym,
+        "~i" => SynsetRelType::InstanceHypernym,
+        "#m" => SynsetRelType::MemberHolonym,
+        "#s" => SynsetRelType::SubstanceHolonym,
+        "#p" => SynsetRelType::PartHolonym,
+        "%m" => SynsetRelType::MemberMeronym,
+        "%s" => SynsetRelType::SubstanceMeronym,
+        "%p" => SynsetRelType::PartMeronym,
+        "=" => SynsetRelType::Attribute,
+        "+" => SynsetRelType::DerivationallyRelated,
+        ";c" => SynsetRelType::DomainOfTopic,
+        "-c" => SynsetRelType::MemberOfTopic,
+        ";r" => SynsetRelType::DomainOfRegion,
+        "-r" => SynsetRelType::MemberOfRegion,
+        ";u" => SynsetRelType::DomainOfUsage,
+        "-u" => SynsetRelType::MemberOfUsage,
+        "*" => SynsetRelType::Entailment,
+        ">" => SynsetRelType::Cause,
+        "^" => SynsetRelType::AlsoSee,
+        "$" => SynsetRelType::VerbGroup,
+        "&" => SynsetRelType::SimilarTo,
+        "<" => SynsetRelType::VerbParticiple,
+        "\\" => SynsetRelType::PertainymOrDerivedFromAdjective,
+        x => panic!("illegal relationship code '{x}'"),
     }
 }
