@@ -1,3 +1,4 @@
 /target
 synsets.yaml
 words.yaml
+vectors.cbor

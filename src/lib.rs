@@ -1,3 +1,5 @@
+pub mod word_vectors;
+
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
@@ -5,8 +7,10 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use strum::{EnumCount, EnumIs, EnumIter};
 use ustr::Ustr;
 
-///Note good breakpoints are 16 and 24
-pub const MAX_WORD_LENGTH: usize = 24;
+// ///Note good breakpoints are 16 and 24
+// pub const MAX_WORD_LENGTH: usize = 24;
+
+pub const VECTOR_DIM: usize = 300;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
@@ -76,18 +80,19 @@ pub struct Word {
     pub text: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-
+    #[serde(default)]
     /// The Word ranked by popularity.
     /// The most popular word is rank 1.
     /// Null if popularity is unknown
     pub popularity: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
-
+    #[serde(default)]
     /// The different meanings of the word
     pub meanings: Vec<SynsetId>,
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     /// Is this word only an inflected form of another word
     pub root_forms: Vec<WordChars>,
 }
@@ -98,14 +103,22 @@ pub struct SynSet {
     pub definition: String,
     pub part_of_speech: PartOfSpeech,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub words: Vec<WordChars>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub relations: Vec<SynsetRelation>,
     //todo relationships
     //pub words: Vec<>
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize_repr, Deserialize_repr, Eq, PartialOrd, Ord, Hash)]
+
+
+
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Serialize_repr, Deserialize_repr, Eq, PartialOrd, Ord, Hash,
+)]
 #[repr(u8)]
 pub enum SynsetRelType {
     /// an opposite word
