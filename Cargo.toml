@@ -12,12 +12,13 @@ num-derive = "0.4.2"
 num-traits = "0.2.19"
 prime_bag = "0.3.0"
 serde = { version = "1.0.228", features = ["derive"] }
+serde_repr = "0.1.20"
 serde_yaml = "0.9.34"
 strum = { version = "0.28.0", features = ["derive"] }
 
 unicode-normalization = "0.1.25"
 unicode-segmentation = "1.13.2"
-ustr = "1.1.0"
+ustr = { version = "1.1.0", features = ["serde"] }
 
 
 [dev-dependencies]

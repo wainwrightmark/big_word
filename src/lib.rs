@@ -1,26 +1,36 @@
 use std::num::NonZeroU32;
 
-use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use strum::{EnumCount, EnumIs, EnumIter};
-
-use crate::character::Character;
-
-pub mod character;
+use ustr::Ustr;
 
 ///Note good breakpoints are 16 and 24
 pub const MAX_WORD_LENGTH: usize = 24;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
-pub struct WordChars(pub ArrayVec<Character, MAX_WORD_LENGTH>);
+pub struct WordChars(Ustr);
 
-impl Serialize for WordChars {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bytes(self.0.ass)
+impl std::ops::Deref for WordChars {
+    type Target = Ustr;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl WordChars {
+    /// Format a string as a WordChars
+    pub fn format(s: &str) -> Self {
+        if s.chars().all(|x| x.is_ascii_lowercase()) {
+            return Self(Ustr::from(s));
+        } else {
+            let new_s = s
+                .to_ascii_lowercase()
+                .replace(|x: char| !x.is_ascii_lowercase(), "");
+            Self(Ustr::from(&new_s))
+        }
     }
 }
 
@@ -36,9 +46,11 @@ impl Serialize for WordChars {
     EnumIs,
     EnumCount,
     EnumIter,
-    Serialize,
-    Deserialize,
+    Serialize_repr,
+    Deserialize_repr,
 )]
+#[repr(u8)]
+
 pub enum PartOfSpeech {
     /// An substantive
     Noun,
@@ -50,16 +62,6 @@ pub enum PartOfSpeech {
     Adverb,
 }
 
-pub struct BasicWordList {}
-
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-// pub struct WordId(u32);
-
-// impl WordId {
-//     pub fn new(_0: u32) -> Self {
-//         Self(_0)
-//     }
-// }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SynsetId(u32);
 
@@ -103,7 +105,8 @@ pub struct SynSet {
     //pub words: Vec<>
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize_repr, Deserialize_repr, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
 pub enum SynsetRelType {
     /// an opposite word
     Antonym,

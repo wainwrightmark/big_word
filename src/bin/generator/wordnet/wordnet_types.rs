@@ -73,6 +73,7 @@ pub struct SynsetId {
 
 /// Raw `ss_type` marker from `data.*`, including adjective satellites.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+
 pub enum SynsetType {
     Noun,
     Verb,

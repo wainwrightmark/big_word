@@ -5,11 +5,7 @@ use std::{
     num::NonZeroU32,
 };
 
-use arrayvec::ArrayVec;
-use big_word::{
-    SynsetId, SynsetRelType, SynsetRelation, WordChars,
-    character::{Character, normalize_characters_array},
-};
+use big_word::{SynsetId, SynsetRelType, SynsetRelation, Word, WordChars};
 use strum::IntoEnumIterator;
 
 use crate::wordnet::{
@@ -39,7 +35,7 @@ fn main() {
     let mut big_word_words: Vec<big_word::Word> = vec![];
     let mut big_word_synsets: Vec<big_word::SynSet> = vec![];
     let mut popularity = 1;
-    let mut used_char_arrays: HashSet<ArrayVec<Character, 24>, _> = HashSet::new();
+    let mut used_char_arrays: HashSet<WordChars, _> = HashSet::new();
 
     enum WordList {
         Google20000,
@@ -54,10 +50,7 @@ fn main() {
 
         let basic_words_text = fs::read_to_string(path).unwrap();
         'basic_words: for basic_word in basic_words_text.lines() {
-            let Ok(av) = big_word::character::normalize_characters_array::<24>(&*basic_word) else {
-                println!("Word '{basic_word}' has too many characters");
-                continue 'basic_words;
-            };
+            let av = WordChars::format(basic_word);
 
             if !used_char_arrays.insert(av) {
                 continue 'basic_words;
@@ -81,9 +74,8 @@ fn main() {
                             }
                         }
                     } else {
-                        if let Ok(arr) = normalize_characters_array(&lemma.lemma) {
-                            root_forms.push(WordChars(arr));
-                        }
+                        
+                        root_forms.push(WordChars::format(&lemma.lemma));
                     }
                 }
             }
@@ -129,8 +121,8 @@ fn main() {
             let words: Vec<WordChars> = synset
                 .words
                 .iter()
-                .flat_map(|lemma| normalize_characters_array::<24>(&lemma.text))
-                .map(|x| WordChars(x))
+                
+                .map(|x| WordChars::format(x.text))
                 .collect();
 
             let relations: Vec<big_word::SynsetRelation> = synset
@@ -160,15 +152,14 @@ fn main() {
         }
     }
 
-    // let mut words_cbor = vec![];
-    // ciborium::ser::into_writer(&big_word_words, &mut words_cbor).unwrap();
-    // std::fs::write("words.cbor", words_cbor.as_slice()).unwrap();
+    let mut words_cbor = vec![];
+    ciborium::ser::into_writer(&big_word_words, &mut words_cbor).unwrap();
+    std::fs::write("words.cbor", words_cbor.as_slice()).unwrap();
 
-    // let mut synsets_cbor = vec![];
-    // ciborium::ser::into_writer(&big_word_synsets, &mut synsets_cbor).unwrap();
-    // std::fs::write("synsets.cbor", synsets_cbor.as_slice()).unwrap();
-    
-    
+    let mut synsets_cbor = vec![];
+    ciborium::ser::into_writer(&big_word_synsets, &mut synsets_cbor).unwrap();
+    std::fs::write("synsets.cbor", synsets_cbor.as_slice()).unwrap();
+
     let words_yaml = serde_yaml::to_string(&big_word_words).unwrap();
     std::fs::write("words.yaml", words_yaml.as_str()).unwrap();
 
