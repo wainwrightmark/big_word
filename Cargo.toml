@@ -5,7 +5,8 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-arrayvec = "0.7.6"
+arrayvec = { version = "0.7.6", features = ["serde"] }
+ciborium = "0.2.2"
 memmap2 = "0.9.10"
 num-derive = "0.4.2"
 num-traits = "0.2.19"

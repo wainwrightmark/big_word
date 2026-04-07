@@ -1,12 +1,13 @@
 pub mod wordnet;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    fs,
+    fs::{self},
+    num::NonZeroU32,
 };
 
 use arrayvec::ArrayVec;
 use big_word::{
-    SynsetId, SynsetRelType, SynsetRelation, WordId,
+    SynsetId, SynsetRelType, SynsetRelation, WordChars,
     character::{Character, normalize_characters_array},
 };
 use strum::IntoEnumIterator;
@@ -17,9 +18,6 @@ use crate::wordnet::{
 };
 
 fn main() {
-    let basic_words_text =
-        fs::read_to_string(r"C:\Source\english_word_list\google-20000-english.txt").unwrap();
-    let basic_words: Vec<&str> = basic_words_text.lines().collect();
     let dict_dir = ::std::path::Path::new(r#"C:\Source\english_word_list\Wordnet"#);
     let word_net = wordnet::wordnet_db::WordNet::load_with_mode(&dict_dir, LoadMode::Mmap).unwrap();
 
@@ -28,7 +26,7 @@ fn main() {
     let mut synsets: BTreeMap<wordnet_types::SynsetId, SynsetId> = BTreeMap::new();
     let mut used_synset_ids: BTreeSet<wordnet_types::SynsetId> = BTreeSet::default();
     //let mut words: BTreeMap<WordChars, (big_word::WordId, HashSet<String>)> = BTreeMap::new();
-    let mut next_word_id = 0u32;
+
     let mut next_synset_id = 0u32;
 
     let all_senses: Vec<wordnet_types::Synset> = word_net.iter_synsets().collect();
@@ -36,93 +34,103 @@ fn main() {
     for sense in all_senses.iter() {
         synsets.insert(sense.id, SynsetId::new(next_synset_id));
         next_synset_id += 1;
-
-        // for word in sense.words.iter() {
-        //     if let Ok(av) = big_word::character::normalize_characters_array(&word.text) {
-        //         match words.entry(WordChars(av)) {
-        //             std::collections::btree_map::Entry::Vacant(vacant_entry) => {
-        //                 vacant_entry.insert((
-        //                     WordId::new(next_word_id),
-        //                     HashSet::from_iter([word.text.to_string()]),
-        //                 ));
-        //                 next_word_id += 1;
-        //             }
-        //             std::collections::btree_map::Entry::Occupied(..) => {}
-        //         }
-        //     }
-        // }
     }
 
     let mut big_word_words: Vec<big_word::Word> = vec![];
     let mut big_word_synsets: Vec<big_word::SynSet> = vec![];
-    let mut popularity = 0;
+    let mut popularity = 1;
     let mut used_char_arrays: HashSet<ArrayVec<Character, 24>, _> = HashSet::new();
-    'basic_words: for basic_word in basic_words.iter().take(10000000000) {
-        let Ok(av) = big_word::character::normalize_characters_array::<24>(&*basic_word) else {
-            println!("Word '{basic_word}' has too many characters");
-            continue 'basic_words;
+
+    enum WordList {
+        Google20000,
+        WordsAlpha,
+    }
+
+    for word_list in [WordList::Google20000, WordList::WordsAlpha] {
+        let path = match word_list {
+            WordList::Google20000 => r"C:\Source\english_word_list\google-20000-english.txt",
+            WordList::WordsAlpha => r"C:\Source\english_word_list\words_alpha.txt",
         };
 
-        if !used_char_arrays.insert(av) {
-            continue 'basic_words;
-        }
-        let id = WordId::new(next_word_id);
-        next_word_id += 1;
+        let basic_words_text = fs::read_to_string(path).unwrap();
+        'basic_words: for basic_word in basic_words_text.lines() {
+            let Ok(av) = big_word::character::normalize_characters_array::<24>(&*basic_word) else {
+                println!("Word '{basic_word}' has too many characters");
+                continue 'basic_words;
+            };
 
-        // let Some((word_id, set)) = words.get(&WordChars(av.clone())) else {
-        //     println!("Word '{basic_word}' is not in wordnet");
-        //     continue 'basic_words;
-        // };
+            if !used_char_arrays.insert(av) {
+                continue 'basic_words;
+            }
 
-        let mut meanings = vec![];
-        let mut is_inflected = true;
+            let mut meanings = vec![];
+            let mut root_forms = vec![];
 
-        for pos in Pos::iter() {
-            for lemma in morphy.lemmas_for(pos, &basic_word, |p, s| word_net.lemma_exists(p, s)) {
-                if lemma.source.is_surface() {
-                    is_inflected = true;
-                }
-                if let Some(index_entry) = word_net.index_entry(lemma.pos, &lemma.lemma) {
-                    for offset in index_entry.synset_offsets.iter().copied() {
-                        let ssi = wordnet_types::SynsetId { pos, offset };
-                        used_synset_ids.insert(ssi);
+            for pos in Pos::iter() {
+                for lemma in morphy.lemmas_for(pos, &basic_word, |p, s| word_net.lemma_exists(p, s))
+                {
+                    if lemma.source.is_surface() {
+                        if let Some(index_entry) = word_net.index_entry(lemma.pos, &lemma.lemma) {
+                            for offset in index_entry.synset_offsets.iter().copied() {
+                                let ssi = wordnet_types::SynsetId { pos, offset };
+                                used_synset_ids.insert(ssi);
 
-                        if let Some(ssi) = synsets.get(&ssi) {
-                            meanings.push(*ssi);
+                                if let Some(ssi) = synsets.get(&ssi) {
+                                    meanings.push(*ssi);
+                                }
+                            }
+                        }
+                    } else {
+                        if let Ok(arr) = normalize_characters_array(&lemma.lemma) {
+                            root_forms.push(WordChars(arr));
                         }
                     }
                 }
             }
+            meanings.sort();
+            meanings.dedup();
+
+            root_forms.sort();
+            root_forms.dedup();
+
+            if meanings.is_empty() && root_forms.is_empty() {
+                match word_list {
+                    WordList::Google20000 => {
+                        println!("Word '{}' not identified", basic_word);
+                    }
+                    WordList::WordsAlpha => {
+                        continue 'basic_words;
+                    }
+                }
+            }
+
+            let popularity = match word_list {
+                WordList::Google20000 => {
+                    let p = NonZeroU32::new(popularity);
+                    popularity += 1;
+                    p
+                }
+                WordList::WordsAlpha => None,
+            };
+
+            let word = big_word::Word {
+                popularity,
+                text: basic_word.to_string(),
+                meanings,
+                root_forms,
+            };
+
+            big_word_words.push(word);
         }
-        meanings.sort();
-        meanings.dedup();
-
-        let word = big_word::Word {
-            id,
-            popularity: popularity,
-            text: basic_word.to_string(),
-            meanings,
-            is_inflected,
-        };
-
-        popularity += 1;
-
-        big_word_words.push(word);
     }
-
-    let big_word_map: BTreeMap<ArrayVec<Character, 24>, WordId> = big_word_words
-        .iter()
-        .map(|x| (normalize_characters_array::<24>(&x.text).unwrap(), x.id))
-        .collect();
 
     for ssi in used_synset_ids.iter().copied() {
         if let Some(synset) = word_net.get_synset(ssi) {
-            let words: Vec<WordId> = synset
+            let words: Vec<WordChars> = synset
                 .words
                 .iter()
                 .flat_map(|lemma| normalize_characters_array::<24>(&lemma.text))
-                .flat_map(|arr| big_word_map.get(&arr))
-                .copied()
+                .map(|x| WordChars(x))
                 .collect();
 
             let relations: Vec<big_word::SynsetRelation> = synset
@@ -152,12 +160,19 @@ fn main() {
         }
     }
 
-    let words_yaml = serde_yaml::to_string(&big_word_words).unwrap();
+    // let mut words_cbor = vec![];
+    // ciborium::ser::into_writer(&big_word_words, &mut words_cbor).unwrap();
+    // std::fs::write("words.cbor", words_cbor.as_slice()).unwrap();
 
+    // let mut synsets_cbor = vec![];
+    // ciborium::ser::into_writer(&big_word_synsets, &mut synsets_cbor).unwrap();
+    // std::fs::write("synsets.cbor", synsets_cbor.as_slice()).unwrap();
+    
+    
+    let words_yaml = serde_yaml::to_string(&big_word_words).unwrap();
     std::fs::write("words.yaml", words_yaml.as_str()).unwrap();
 
     let synsets_yaml = serde_yaml::to_string(&big_word_synsets).unwrap();
-
     std::fs::write("synsets.yaml", synsets_yaml.as_str()).unwrap();
 }
 

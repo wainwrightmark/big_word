@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
 use strum::{EnumCount, EnumIs, EnumIter};
@@ -9,10 +11,34 @@ pub mod character;
 ///Note good breakpoints are 16 and 24
 pub const MAX_WORD_LENGTH: usize = 24;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(transparent)]
 pub struct WordChars(pub ArrayVec<Character, MAX_WORD_LENGTH>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIs, EnumCount, EnumIter, Serialize, Deserialize)]
+impl Serialize for WordChars {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_bytes(self.0.ass)
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    EnumIs,
+    EnumCount,
+    EnumIter,
+    Serialize,
+    Deserialize,
+)]
 pub enum PartOfSpeech {
     /// An substantive
     Noun,
@@ -26,14 +52,14 @@ pub enum PartOfSpeech {
 
 pub struct BasicWordList {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct WordId(u32);
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+// pub struct WordId(u32);
 
-impl WordId {
-    pub fn new(_0: u32) -> Self {
-        Self(_0)
-    }
-}
+// impl WordId {
+//     pub fn new(_0: u32) -> Self {
+//         Self(_0)
+//     }
+// }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SynsetId(u32);
 
@@ -45,25 +71,33 @@ impl SynsetId {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Word {
-    pub id: WordId,
-    /// The Word ranked by popularity.
-    /// The most popular word is rank 0.
-    pub popularity: u32,
     pub text: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+
+    /// The Word ranked by popularity.
+    /// The most popular word is rank 1.
+    /// Null if popularity is unknown
+    pub popularity: Option<NonZeroU32>,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+
     /// The different meanings of the word
     pub meanings: Vec<SynsetId>,
-    /// Is this word only an inflected form of another word
-    pub is_inflected: bool,
-}
 
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Is this word only an inflected form of another word
+    pub root_forms: Vec<WordChars>,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SynSet {
     pub id: SynsetId,
     pub definition: String,
     pub part_of_speech: PartOfSpeech,
-    pub words: Vec<WordId>,
-
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub words: Vec<WordChars>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub relations: Vec<SynsetRelation>,
     //todo relationships
     //pub words: Vec<>
