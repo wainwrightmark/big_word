@@ -63,16 +63,11 @@ pub fn generate_vectors() {
         let word = WordChars::format(&word.text);
         if let Some(vector) = entries.get(&word) {
             let bytes = ranges.convert(vector);
-            // let mut data = [0u8; DIM];
-            // for index in 0..DIM {
-            //     let byte = index / 8;
-            //     let shift = index % 8;
-            //     let bit = (vector[index] >= means[index]) as u8;
-            //     data[byte] |= bit << shift;
-            // }
             output_words.push(WordVectors { word, bytes });
         }
     }
+
+    output_words.sort_by_key(|x|x.word.clone());
 
     let mut vectors_cbor = vec![];
     ciborium::ser::into_writer(&output_words, &mut vectors_cbor).unwrap();

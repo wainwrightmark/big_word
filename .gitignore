@@ -2,3 +2,5 @@
 synsets.yaml
 words.yaml
 vectors.cbor
+synsets.cbor
+words.cbor

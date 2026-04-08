@@ -77,7 +77,7 @@ impl SynsetId {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Word {
-    pub text: String,
+    pub text: Ustr,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]

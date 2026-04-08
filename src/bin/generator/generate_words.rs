@@ -6,6 +6,7 @@ use std::{
 
 use big_word::{SynsetId, SynsetRelType, SynsetRelation, WordChars};
 use strum::IntoEnumIterator;
+use ustr::Ustr;
 
 use crate::wordnet::{
     self, wordnet_db::LoadMode, wordnet_types::{self, Pos}
@@ -85,7 +86,7 @@ pub fn generate_words_and_synsets() {
             if meanings.is_empty() && root_forms.is_empty() {
                 match word_list {
                     WordList::Google20000 => {
-                        println!("Word '{}' not identified", basic_word);
+                        //println!("Word '{}' not identified", basic_word);
                     }
                     WordList::WordsAlpha => {
                         continue 'basic_words;
@@ -104,7 +105,7 @@ pub fn generate_words_and_synsets() {
 
             let word = big_word::Word {
                 popularity,
-                text: basic_word.to_string(),
+                text: Ustr::from(basic_word),
                 meanings,
                 root_forms,
             };
@@ -147,6 +148,31 @@ pub fn generate_words_and_synsets() {
             }
         }
     }
+
+    big_word_words.sort_by_cached_key(|x|WordChars::format(&x.text));
+    big_word_synsets.sort_by_key(|x|x.id);
+
+    // let max_meanings = big_word_words.iter().map(|x|x.meanings.len()).max().unwrap_or_default();
+    // let max_root_forms = big_word_words.iter().map(|x|x.root_forms.len()).max().unwrap_or_default();
+
+    // println!("Max meanings: {max_meanings}. Max root forms: {max_root_forms}");
+
+    // for w in big_word_words.iter().filter(|x|x.meanings.len() >= 20){
+    //     println!("Word has {} meanings: {}", w.meanings.len(), w.text);        
+    // }
+    
+    // let max_synset_words = big_word_synsets.iter().map(|x|x.words.len()).max().unwrap_or_default();
+    // let max_synset_relations = big_word_synsets.iter().map(|x|x.relations.len()).max().unwrap_or_default();
+
+    // for s in big_word_synsets.iter().filter(|x|x.words.len() >= 20){
+    //     println!("Synset has {} words: {}", s.words.len(), s.definition);        
+    // }
+    
+    // for s in big_word_synsets.iter().filter(|x|x.relations.len() >= 100){
+    //     println!("Synset has {} relations: {}", s.relations.len(), s.definition);        
+    // }
+
+    // println!("Max synset words: {max_synset_words}. Max synset relations: {max_synset_relations}");
 
     let mut words_cbor = vec![];
     ciborium::ser::into_writer(&big_word_words, &mut words_cbor).unwrap();
