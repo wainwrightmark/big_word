@@ -1,10 +1,9 @@
 use clap::{Parser, Subcommand};
 
-use crate::vectors_test::TestVectorArgs;
+use crate::vector::TestVectorArgs;
 
 pub mod generate_words;
 pub mod vector;
-pub mod vectors_test;
 pub mod wordnet;
 
 fn main() {
@@ -12,9 +11,9 @@ fn main() {
 
     match cli.command {
         Commands::GenerateWords => crate::generate_words::generate_words_and_synsets(),
-        Commands::GenerateVectors => crate::vector::generate_vectors(),
+        Commands::GenerateVectors => crate::vector::generate_vectors2(),
         Commands::TestVectors(test_vector_args) => {
-            vectors_test::test_vectors(test_vector_args);
+            crate::vector::test_vectors2(test_vector_args);
         }
     }
 }

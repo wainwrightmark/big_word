@@ -1,6 +1,6 @@
 pub mod word_vectors;
 
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -75,7 +75,7 @@ impl SynsetId {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Word {
     pub text: Ustr,
 
@@ -89,12 +89,12 @@ pub struct Word {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     /// The different meanings of the word
-    pub meanings: Vec<SynsetId>,
+    pub meanings: Arc<Vec<SynsetId>>,
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     /// Is this word only an inflected form of another word
-    pub root_forms: Vec<WordChars>,
+    pub root_forms: Arc<Vec<WordChars>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -104,17 +104,11 @@ pub struct SynSet {
     pub part_of_speech: PartOfSpeech,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
-    pub words: Vec<WordChars>,
+    pub words: Arc<Vec<WordChars>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
-    pub relations: Vec<SynsetRelation>,
-    //todo relationships
-    //pub words: Vec<>
+    pub relations: Arc<Vec<SynsetRelation>>,
 }
-
-
-
-
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Serialize_repr, Deserialize_repr, Eq, PartialOrd, Ord, Hash,

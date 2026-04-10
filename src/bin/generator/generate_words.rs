@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fs::{self},
-    num::NonZeroU32,
+    num::NonZeroU32, sync::Arc,
 };
 
 use big_word::{SynsetId, SynsetRelType, SynsetRelation, WordChars};
@@ -106,8 +106,8 @@ pub fn generate_words_and_synsets() {
             let word = big_word::Word {
                 popularity,
                 text: Ustr::from(basic_word),
-                meanings,
-                root_forms,
+                meanings: Arc::new(meanings),
+                root_forms: Arc::new(root_forms),
             };
 
             big_word_words.push(word);
@@ -142,8 +142,8 @@ pub fn generate_words_and_synsets() {
                     id,
                     definition: synset.gloss.definition.to_string(),
                     part_of_speech: convert_synset_type(&synset.synset_type),
-                    words,
-                    relations,
+                    words: Arc::new(words),
+                    relations: Arc::new(relations),
                 });
             }
         }
