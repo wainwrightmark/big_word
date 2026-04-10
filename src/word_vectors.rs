@@ -1,26 +1,26 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{VECTOR_DIM, WordChars};
+use serde_big_array::BigArray;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WordVectors {
+pub struct WordVectorsF32 {
     pub word: WordChars,
-    #[serde(with = "serde_bytes")]
-    pub bytes: [u8; VECTOR_DIM],
+    #[serde(with = "BigArray")]
+    pub data: [f32; VECTOR_DIM],
 }
 
-impl WordVectors {
-    pub fn distance_from_squared(&self, other: &Self) -> u32 {
-        let mut sum = 0;
-        
+impl WordVectorsF32 {
+    pub fn distance_from_squared(&self, other: &Self) -> f32 {
+        let mut sum = 0f32;
 
         for index in 0..VECTOR_DIM {
             //let a = if self.bytes[index] < 128 {0u8} else {1};
             //let b = if other.bytes[index] < 128 {0u8} else {1};
 
-            let a = self.bytes[index];
-            let b = other.bytes[index];
-            let d = a.abs_diff(b) as u32;
+            let a = self.data[index];
+            let b = other.data[index];
+            let d = a - b;
             sum += d * d;
         }
 

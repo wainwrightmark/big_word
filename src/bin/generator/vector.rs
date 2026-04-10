@@ -5,83 +5,143 @@ use std::{
 
 use clap::Args;
 
-use big_word::{VECTOR_DIM, Word, WordChars, word_vectors::WordVectors};
+use big_word::{VECTOR_DIM, Word, WordChars, word_vectors::WordVectorsF32};
 
-pub fn generate_vectors() {
-    let path = r#"C:\Source\ML_Models\GoogleNews-vectors-negative300.bin"#;
+// pub fn generate_vectors() {
+//     let path = r#"C:\Source\ML_Models\GoogleNews-vectors-negative300.bin"#;
 
-    //let bytes = std::fs::read(path).unwrap();
-    let file = std::fs::File::open(path).unwrap();
-    let mut reader = BufReader::new(file);
+//     //let bytes = std::fs::read(path).unwrap();
+//     let file = std::fs::File::open(path).unwrap();
+//     let mut reader = BufReader::new(file);
 
-    reader.skip_until('\n' as u8).unwrap();
+//     reader.skip_until('\n' as u8).unwrap();
 
-    let mut entries: HashMap<WordChars, [f32; VECTOR_DIM]> = HashMap::new();
-    let mut vector_bytes = [0u8; VECTOR_DIM * 4];
-    let mut ranges = Ranges::new();
+//     let mut entries: HashMap<WordChars, [f32; VECTOR_DIM]> = HashMap::new();
+//     let mut vector_bytes = [0u8; VECTOR_DIM * 4];
+//     let mut ranges = Ranges::new();
 
-    'read_data: loop {
-        let mut word_bytes: Vec<u8> = Vec::new();
-        match reader.read_until(' ' as u8, &mut word_bytes) {
-            Ok(_) => {}
-            Err(err) => {
-                println!("{err}");
-                break 'read_data;
-            }
-        }
-        if word_bytes.is_empty() {
-            break 'read_data;
-        }
-        word_bytes.remove(word_bytes.len() - 1);
-        let word = String::from_utf8(word_bytes).unwrap();
+//     'read_data: loop {
+//         let mut word_bytes: Vec<u8> = Vec::new();
+//         match reader.read_until(' ' as u8, &mut word_bytes) {
+//             Ok(_) => {}
+//             Err(err) => {
+//                 println!("{err}");
+//                 break 'read_data;
+//             }
+//         }
+//         if word_bytes.is_empty() {
+//             break 'read_data;
+//         }
+//         word_bytes.remove(word_bytes.len() - 1);
+//         let word = String::from_utf8(word_bytes).unwrap();
 
-        reader.read_exact(&mut vector_bytes).unwrap();
+//         reader.read_exact(&mut vector_bytes).unwrap();
 
-        let vector: [f32; VECTOR_DIM] = std::array::from_fn(|i| {
-            let i = i * 4;
-            f32::from_ne_bytes([
-                vector_bytes[i],
-                vector_bytes[i + 1],
-                vector_bytes[i + 2],
-                vector_bytes[i + 3],
-            ])
-        });
+//         let vector: [f32; VECTOR_DIM] = std::array::from_fn(|i| {
+//             let i = i * 4;
+//             f32::from_ne_bytes([
+//                 vector_bytes[i],
+//                 vector_bytes[i + 1],
+//                 vector_bytes[i + 2],
+//                 vector_bytes[i + 3],
+//             ])
+//         });
 
-        ranges.include(vector);
+//         ranges.include(vector);
 
-        entries.entry(WordChars::format(&word)).or_insert(vector);
-    }
+//         entries.entry(WordChars::format(&word)).or_insert(vector);
+//     }
 
-    println!("{} entries", entries.len());
+//     println!("{} entries", entries.len());
 
-    // let means: [f32; 300] = sums.map(|x| (x / entries.len() as f64) as f32);
+//     // let means: [f32; 300] = sums.map(|x| (x / entries.len() as f64) as f32);
 
-    let input_words = std::fs::File::open("words.cbor").unwrap();
-    let input_words: Vec<Word> = ciborium::from_reader(input_words).unwrap();
+//     let input_words = std::fs::File::open("words.cbor").unwrap();
+//     let input_words: Vec<Word> = ciborium::from_reader(input_words).unwrap();
 
-    let mut output_words: Vec<WordVectors> = vec![];
-    let mut words_found = 0;
+//     let mut output_words: Vec<WordVectorsF32> = vec![];
+//     let mut words_found = 0;
 
-    for word in input_words.into_iter() {
-        let word = WordChars::format(&word.text);
-        if let Some(vector) = entries.get(&word) {
-            let bytes = ranges.convert(vector);
-            output_words.push(WordVectors { word, bytes });
-            words_found += 1;
-        }
-    }
+//     for word in input_words.into_iter() {
+//         let word = WordChars::format(&word.text);
+//         if let Some(vector) = entries.get(&word) {
+//             let bytes = ranges.convert(vector);
+//             output_words.push(WordVectorsF32 { word, bytes });
+//             words_found += 1;
+//         }
+//     }
 
-    println!("{} words found", words_found);
+//     println!("{} words found", words_found);
 
-    output_words.sort_by_key(|x| x.word.clone());
+//     output_words.sort_by_key(|x| x.word.clone());
 
-    let mut vectors_cbor = vec![];
-    ciborium::ser::into_writer(&output_words, &mut vectors_cbor).unwrap();
-    std::fs::write("vectors.cbor", vectors_cbor.as_slice()).unwrap();
+//     let mut vectors_cbor = vec![];
+//     ciborium::ser::into_writer(&output_words, &mut vectors_cbor).unwrap();
+//     std::fs::write("vectors.cbor", vectors_cbor.as_slice()).unwrap();
 
-    // let vectors_yaml = serde_yaml::to_string(&output_words).unwrap();
-    // std::fs::write("vectors.yaml", vectors_yaml.as_str()).unwrap();
-}
+//     // let vectors_yaml = serde_yaml::to_string(&output_words).unwrap();
+//     // std::fs::write("vectors.yaml", vectors_yaml.as_str()).unwrap();
+// }
+
+// pub fn generate_vectors2() {
+//     let path = r#"C:\Source\ML_Models\Glove\wiki_giga_2024_300_MFT20_vectors_seed_2024_alpha_0.75_eta_0.05_combined.txt"#;
+
+//     //let bytes = std::fs::read(path).unwrap();
+//     let file = std::fs::File::open(path).unwrap();
+//     let mut reader = BufReader::new(file);
+
+//     reader.skip_until('\n' as u8).unwrap();
+
+//     let mut entries: HashMap<WordChars, [f32; VECTOR_DIM]> = HashMap::new();
+
+//     let mut ranges = Ranges::new();
+
+//     for line in reader.lines() {
+//         let line = line.unwrap();
+//         let mut split = line.split(" ");
+//         if let Some(word) = split.next() {
+//             let mut arr = [0f32; VECTOR_DIM];
+//             for (index, num) in split.enumerate() {
+//                 let num = num.parse::<f32>().unwrap();
+//                 arr[index] = num;
+//             }
+//             ranges.include(arr);
+//             entries.insert(WordChars::format(word), arr);
+
+//         }
+//     }
+
+//     println!("{} entries", entries.len());
+
+//     // let means: [f32; 300] = sums.map(|x| (x / entries.len() as f64) as f32);
+
+//     let input_words = std::fs::File::open("words.cbor").unwrap();
+//     let input_words: Vec<Word> = ciborium::from_reader(input_words).unwrap();
+
+//     let mut output_words: Vec<WordVectorsF32> = vec![];
+//     let mut words_found = 0;
+
+//     for word in input_words.into_iter() {
+//         let word = WordChars::format(&word.text);
+//         if let Some(vector) = entries.get(&word) {
+//             let bytes = ranges.convert(vector);
+//             //println!("{}: {}", word.as_str(), bytes.map(|x|x.to_string()) .join(", "));
+//             output_words.push(WordVectorsF32 { word, bytes });
+//             words_found += 1;
+//         }
+//     }
+
+//     println!("{} words found", words_found);
+
+//     output_words.sort_by_key(|x| x.word.clone());
+
+//     let mut vectors_cbor = vec![];
+//     ciborium::ser::into_writer(&output_words, &mut vectors_cbor).unwrap();
+//     std::fs::write("vectors.cbor", vectors_cbor.as_slice()).unwrap();
+
+//     // let vectors_yaml = serde_yaml::to_string(&output_words).unwrap();
+//     // std::fs::write("vectors.yaml", vectors_yaml.as_str()).unwrap();
+// }
 
 pub fn generate_vectors2() {
     let path = r#"C:\Source\ML_Models\Glove\wiki_giga_2024_300_MFT20_vectors_seed_2024_alpha_0.75_eta_0.05_combined.txt"#;
@@ -94,8 +154,6 @@ pub fn generate_vectors2() {
 
     let mut entries: HashMap<WordChars, [f32; VECTOR_DIM]> = HashMap::new();
 
-    let mut ranges = Ranges::new();
-
     for line in reader.lines() {
         let line = line.unwrap();
         let mut split = line.split(" ");
@@ -105,9 +163,7 @@ pub fn generate_vectors2() {
                 let num = num.parse::<f32>().unwrap();
                 arr[index] = num;
             }
-            ranges.include(arr);
             entries.insert(WordChars::format(word), arr);
-            
         }
     }
 
@@ -118,15 +174,15 @@ pub fn generate_vectors2() {
     let input_words = std::fs::File::open("words.cbor").unwrap();
     let input_words: Vec<Word> = ciborium::from_reader(input_words).unwrap();
 
-    let mut output_words: Vec<WordVectors> = vec![];
+    let mut output_words: Vec<WordVectorsF32> = vec![];
     let mut words_found = 0;
 
     for word in input_words.into_iter() {
         let word = WordChars::format(&word.text);
-        if let Some(vector) = entries.get(&word) {
-            let bytes = ranges.convert(vector);
-            //println!("{}: {}", word.as_str(), bytes.map(|x|x.to_string()) .join(", "));           
-            output_words.push(WordVectors { word, bytes });
+        if let Some(data) = entries.remove(&word) {
+            //let bytes = ranges.convert(vector);
+            //println!("{}: {}", word.as_str(), bytes.map(|x|x.to_string()) .join(", "));
+            output_words.push(WordVectorsF32 { word, data });
             words_found += 1;
         }
     }

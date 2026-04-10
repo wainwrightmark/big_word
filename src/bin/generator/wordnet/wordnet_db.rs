@@ -200,6 +200,8 @@ pub struct WordNet {
     lemma_to_synsets: HashMap<(Pos, String), Vec<SynsetId>>,
     verb_frames_text: HashMap<u16, TextRef>,
     sense_counts: HashMap<(String, Pos, u32), u32>,
+
+    pub spellings: HashMap<(Pos, String), String>,
 }
 
 impl WordNet {
@@ -265,29 +267,34 @@ impl WordNet {
         )?;
 
         let mut synsets = HashMap::new();
+        let mut spellings = HashMap::default();
         parse_data(
             files.bytes(FileKind::DataNoun),
             FileKind::DataNoun,
             Pos::Noun,
             &mut synsets,
+            &mut spellings
         )?;
         parse_data(
             files.bytes(FileKind::DataVerb),
             FileKind::DataVerb,
             Pos::Verb,
             &mut synsets,
+            &mut spellings
         )?;
         parse_data(
             files.bytes(FileKind::DataAdj),
             FileKind::DataAdj,
             Pos::Adj,
             &mut synsets,
+            &mut spellings
         )?;
         parse_data(
             files.bytes(FileKind::DataAdv),
             FileKind::DataAdv,
             Pos::Adv,
             &mut synsets,
+            &mut spellings
         )?;
 
         let verb_frames_text = parse_frames_vrb(files.bytes(FileKind::Frames));
@@ -300,6 +307,7 @@ impl WordNet {
             lemma_to_synsets,
             verb_frames_text,
             sense_counts,
+            spellings
         })
     }
 
@@ -555,6 +563,7 @@ fn parse_data(
     file: FileKind,
     pos: Pos,
     synsets: &mut HashMap<SynsetId, SynsetData>,
+    spellings: &mut HashMap<(Pos, String), String>
 ) -> Result<()> {
     for (lineno, raw_line) in bytes.split(|b| *b == b'\n').enumerate() {
         let line = strip_cr(raw_line);
@@ -594,7 +603,7 @@ fn parse_data(
         }
         let mut words = Vec::with_capacity(w_cnt);
         for _ in 0..w_cnt {
-            let text_token = tokens[idx];
+            let text_token = tokens[idx];            
             let lex_id_token = tokens[idx + 1];
             let lex_id: u8 = u8::from_str_radix(lex_id_token, 16)
                 .with_context(|| format!("{:?}:{} lex_id", file, lineno + 1))?;
@@ -603,6 +612,9 @@ fn parse_data(
                 lex_id,
             });
             idx += 2;
+
+            let normalized = normalize_lemma(text_token);
+            spellings.insert((pos, normalized), text_token.to_string());
         }
 
         if tokens.len() <= idx {

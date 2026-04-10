@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fs::{self},
-    num::NonZeroU32, sync::Arc,
+    num::NonZeroU32,
+    sync::Arc,
 };
 
 use big_word::{SynsetId, SynsetRelType, SynsetRelation, WordChars};
@@ -9,7 +10,9 @@ use strum::IntoEnumIterator;
 use ustr::Ustr;
 
 use crate::wordnet::{
-    self, wordnet_db::LoadMode, wordnet_types::{self, Pos}
+    self,
+    wordnet_db::LoadMode,
+    wordnet_types::{self, Pos},
 };
 
 pub fn generate_words_and_synsets() {
@@ -58,11 +61,19 @@ pub fn generate_words_and_synsets() {
             let mut meanings = vec![];
             let mut root_forms = vec![];
 
+            let mut text = Ustr::from(basic_word);
+
+            
+
             for pos in Pos::iter() {
                 for lemma in morphy.lemmas_for(pos, &basic_word, |p, s| word_net.lemma_exists(p, s))
                 {
                     if lemma.source.is_surface() {
                         if let Some(index_entry) = word_net.index_entry(lemma.pos, &lemma.lemma) {
+                            if let Some(spelling) = word_net.spellings.get(&(pos, lemma.lemma.to_string())){
+                                text = Ustr::from(spelling);
+                            }
+                            
                             for offset in index_entry.synset_offsets.iter().copied() {
                                 let ssi = wordnet_types::SynsetId { pos, offset };
                                 used_synset_ids.insert(ssi);
@@ -89,6 +100,7 @@ pub fn generate_words_and_synsets() {
                         //println!("Word '{}' not identified", basic_word);
                     }
                     WordList::WordsAlpha => {
+                        //Do not include these words
                         continue 'basic_words;
                     }
                 }
@@ -105,7 +117,7 @@ pub fn generate_words_and_synsets() {
 
             let word = big_word::Word {
                 popularity,
-                text: Ustr::from(basic_word),
+                text,
                 meanings: Arc::new(meanings),
                 root_forms: Arc::new(root_forms),
             };
@@ -149,8 +161,8 @@ pub fn generate_words_and_synsets() {
         }
     }
 
-    big_word_words.sort_by_cached_key(|x|WordChars::format(&x.text));
-    big_word_synsets.sort_by_key(|x|x.id);
+    big_word_words.sort_by_cached_key(|x| WordChars::format(&x.text));
+    big_word_synsets.sort_by_key(|x| x.id);
 
     // let max_meanings = big_word_words.iter().map(|x|x.meanings.len()).max().unwrap_or_default();
     // let max_root_forms = big_word_words.iter().map(|x|x.root_forms.len()).max().unwrap_or_default();
@@ -158,18 +170,18 @@ pub fn generate_words_and_synsets() {
     // println!("Max meanings: {max_meanings}. Max root forms: {max_root_forms}");
 
     // for w in big_word_words.iter().filter(|x|x.meanings.len() >= 20){
-    //     println!("Word has {} meanings: {}", w.meanings.len(), w.text);        
+    //     println!("Word has {} meanings: {}", w.meanings.len(), w.text);
     // }
-    
+
     // let max_synset_words = big_word_synsets.iter().map(|x|x.words.len()).max().unwrap_or_default();
     // let max_synset_relations = big_word_synsets.iter().map(|x|x.relations.len()).max().unwrap_or_default();
 
     // for s in big_word_synsets.iter().filter(|x|x.words.len() >= 20){
-    //     println!("Synset has {} words: {}", s.words.len(), s.definition);        
+    //     println!("Synset has {} words: {}", s.words.len(), s.definition);
     // }
-    
+
     // for s in big_word_synsets.iter().filter(|x|x.relations.len() >= 100){
-    //     println!("Synset has {} relations: {}", s.relations.len(), s.definition);        
+    //     println!("Synset has {} relations: {}", s.relations.len(), s.definition);
     // }
 
     // println!("Max synset words: {max_synset_words}. Max synset relations: {max_synset_relations}");
