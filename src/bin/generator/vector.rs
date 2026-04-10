@@ -105,7 +105,9 @@ pub fn generate_vectors2() {
                 let num = num.parse::<f32>().unwrap();
                 arr[index] = num;
             }
+            ranges.include(arr);
             entries.insert(WordChars::format(word), arr);
+            
         }
     }
 
@@ -123,6 +125,7 @@ pub fn generate_vectors2() {
         let word = WordChars::format(&word.text);
         if let Some(vector) = entries.get(&word) {
             let bytes = ranges.convert(vector);
+            //println!("{}: {}", word.as_str(), bytes.map(|x|x.to_string()) .join(", "));           
             output_words.push(WordVectors { word, bytes });
             words_found += 1;
         }

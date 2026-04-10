@@ -86,7 +86,7 @@ pub struct Word {
     /// Null if popularity is unknown
     pub popularity: Option<NonZeroU32>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")] 
     #[serde(default)]
     /// The different meanings of the word
     pub meanings: Arc<Vec<SynsetId>>,

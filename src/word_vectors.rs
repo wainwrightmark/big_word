@@ -20,8 +20,8 @@ impl WordVectors {
 
             let a = self.bytes[index];
             let b = other.bytes[index];
-            let d = a.abs_diff(b);
-            sum += (d * d) as u32;
+            let d = a.abs_diff(b) as u32;
+            sum += d * d;
         }
 
         sum
