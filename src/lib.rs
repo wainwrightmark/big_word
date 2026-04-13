@@ -67,7 +67,8 @@ pub enum PartOfSpeech {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct SynsetId(u32);
+#[serde(transparent)]
+pub struct SynsetId(pub u32);
 
 impl SynsetId {
     pub fn new(_0: u32) -> Self {

@@ -1,10 +1,11 @@
 use clap::{Parser, Subcommand};
 
-use crate::vector::TestVectorArgs;
+use crate::{check_words::CheckWordArgs, vector::TestVectorArgs};
 
 pub mod generate_words;
 pub mod vector;
 pub mod wordnet;
+pub mod check_words;
 
 fn main() {
     let cli = Cli::parse();
@@ -12,6 +13,7 @@ fn main() {
     match cli.command {
         Commands::GenerateWords => crate::generate_words::generate_words_and_synsets(),
         Commands::GenerateVectors => crate::vector::generate_vectors2(),
+        Commands::CheckWords(args) => crate::check_words::check_words(args),
         Commands::TestVectors(test_vector_args) => {
             crate::vector::test_vectors2(test_vector_args);
         }
@@ -31,5 +33,6 @@ pub enum Commands {
     #[default]
     GenerateWords,
     GenerateVectors,
+    CheckWords(CheckWordArgs),
     TestVectors(TestVectorArgs),
 }
