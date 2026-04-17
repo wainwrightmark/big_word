@@ -4,7 +4,7 @@ use std::{num::NonZeroU32, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use strum::{EnumCount, EnumIs, EnumIter};
+use strum::{EnumCount, EnumIs, EnumIter, EnumString, IntoStaticStr};
 use ustr::Ustr;
 
 // ///Note good breakpoints are 16 and 24
@@ -87,7 +87,7 @@ pub struct Word {
     /// Null if popularity is unknown
     pub popularity: Option<NonZeroU32>,
 
-    #[serde(skip_serializing_if = "Vec::is_empty")] 
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     /// The different meanings of the word
     pub meanings: Arc<Vec<SynsetId>>,
@@ -101,7 +101,7 @@ pub struct Word {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SynSet {
     pub id: SynsetId,
-    pub definition: String,
+    pub definition: Ustr,
     pub part_of_speech: PartOfSpeech,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
@@ -112,7 +112,18 @@ pub struct SynSet {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Serialize_repr, Deserialize_repr, Eq, PartialOrd, Ord, Hash,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize_repr,
+    Deserialize_repr,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    IntoStaticStr,
+    EnumString,
 )]
 #[repr(u8)]
 pub enum SynsetRelType {

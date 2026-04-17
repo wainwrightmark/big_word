@@ -152,7 +152,7 @@ pub fn generate_words_and_synsets() {
             if let Some(id) = synsets.get(&ssi).copied() {
                 big_word_synsets.push(big_word::SynSet {
                     id,
-                    definition: synset.gloss.definition.to_string(),
+                    definition: Ustr::from(synset.gloss.definition) ,
                     part_of_speech: convert_synset_type(&synset.synset_type),
                     words: Arc::new(words),
                     relations: Arc::new(relations),
