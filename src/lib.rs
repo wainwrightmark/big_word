@@ -124,6 +124,8 @@ pub struct SynSet {
     Hash,
     IntoStaticStr,
     EnumString,
+    EnumIs,
+    EnumIter
 )]
 #[repr(u8)]
 pub enum SynsetRelType {
