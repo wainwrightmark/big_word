@@ -10,23 +10,23 @@ pub struct WordVectorsF32 {
     pub data: [f32; VECTOR_DIM],
 }
 
-impl WordVectorsF32 {
-    pub fn distance_from_squared(&self, other: &Self) -> f32 {
-        let mut sum = 0f32;
+// impl WordVectorsF32 {
+//     pub fn distance_from_squared(&self, other: &Self) -> f32 {
+//         let mut sum = 0f32;
 
-        for index in 0..VECTOR_DIM {
-            //let a = if self.bytes[index] < 128 {0u8} else {1};
-            //let b = if other.bytes[index] < 128 {0u8} else {1};
+//         for index in 0..VECTOR_DIM {
+//             //let a = if self.bytes[index] < 128 {0u8} else {1};
+//             //let b = if other.bytes[index] < 128 {0u8} else {1};
 
-            let a = self.data[index];
-            let b = other.data[index];
-            let d = a - b;
-            sum += d * d;
-        }
+//             let a = self.data[index];
+//             let b = other.data[index];
+//             let d = a - b;
+//             sum += d * d;
+//         }
 
-        sum
-    }
-}
+//         sum
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -37,16 +37,34 @@ pub struct WordVectorData {
 
 impl Point for WordVectorData {
     fn distance(&self, other: &Self) -> f32 {
-        let mut sum = 0f32;
-
-        for index in 0..VECTOR_DIM {
-
-            let a = self.data[index];
-            let b = other.data[index];
-            let d = a - b;
-            sum += d * d;
-        }
-
-        sum
+        calculate_cosine_similarity(&self.data, &other.data) * -1.0
     }
 }
+
+pub fn calculate_cosine_similarity<const N: usize>(a: &[f32; N], b: &[f32; N]) -> f32 {
+    let mut product: f32 = 0f32;
+    let mut aa: f32 = 0f32;
+    let mut bb: f32 = 0f32;
+
+    for index in 0..N {
+        let a = a[index];
+        let b = b[index];
+
+        product += a * b;
+        aa += a * a;
+        bb += b * b;
+    }
+
+    let result = product / (aa * bb).sqrt();
+
+    result
+}
+
+// pub fn calculate_normalized_euclidean_distance<const N: usize>(a: &[f32; N], b: &[f32; N]) -> f32 {
+//     let mut total = 0.0;
+//     for i in 0..N {
+//         let d = self[i] - other[i];
+//         total += d * d;
+//     }
+//     total
+// }

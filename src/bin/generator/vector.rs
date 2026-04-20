@@ -5,7 +5,7 @@ use std::{
 
 use clap::Args;
 
-use big_word::{VECTOR_DIM, Word, WordChars, word_vectors::WordVectorsF32};
+use big_word::{VECTOR_DIM, Word, WordChars, word_vectors::{WordVectorsF32, calculate_cosine_similarity}};
 
 // pub fn generate_vectors() {
 //     let path = r#"C:\Source\ML_Models\GoogleNews-vectors-negative300.bin"#;
@@ -287,7 +287,7 @@ pub fn test_vectors1(args: TestVectorArgs) {
     // let word_vectors: Vec<WordVectors> = ciborium::from_reader(file).unwrap();
 
     let master_key: WordChars = WordChars::format(&args.master);
-    let word_keys: HashSet<WordChars> = args.words.iter().map(|x| WordChars::format(x)).collect();
+    //let word_keys: HashSet<WordChars> = args.words.iter().map(|x| WordChars::format(x)).collect();
 
     let master_vector = entries.get(&master_key).unwrap();
 
@@ -298,7 +298,7 @@ pub fn test_vectors1(args: TestVectorArgs) {
         .flat_map(|x| {
             entries
                 .get(&x)
-                .map(|y| (x, calculate_distance(y, &master_vector)))
+                .map(|y| (x, -calculate_cosine_similarity(y, &master_vector)))
         })
         .collect();
 
@@ -359,7 +359,7 @@ pub fn test_vectors2(args: TestVectorArgs) {
         .flat_map(|x| {
             entries
                 .get(&x)
-                .map(|y| (x, calculate_distance(y, &master_vector)))
+                .map(|y| (x, -calculate_cosine_similarity(y, &master_vector)))
         })
         .collect();
 
@@ -370,7 +370,7 @@ pub fn test_vectors2(args: TestVectorArgs) {
     }
 }
 
-fn calculate_distance(a: &[f32; VECTOR_DIM], b: &[f32; VECTOR_DIM]) -> f32 {
+fn calculate_euclidean_distance(a: &[f32; VECTOR_DIM], b: &[f32; VECTOR_DIM]) -> f32 {
     let mut sum = 0f32;
 
     for index in 0..VECTOR_DIM {

@@ -11,6 +11,8 @@ mod types;
 pub use types::PointId;
 use types::{Candidate, INVALID, Layer, LayerId, UpperNode, Visited, ZeroNode};
 
+use crate::word_vectors::calculate_cosine_similarity;
+
 #[derive(Clone)]
 /// Parameters for building the `Hnsw`
 pub struct Builder {
@@ -729,11 +731,6 @@ const M: usize = 32;
 
 impl<const N: usize> Point for [f32; N] {
     fn distance(&self, other: &Self) -> f32 {
-        let mut total = 0.0;
-        for i in 0..N {
-            let d = self[i] - other[i];
-            total += d * d;
-        }
-        total
+        calculate_cosine_similarity(self, other) * -1.0
     }
 }
