@@ -1,4 +1,5 @@
 pub mod word_vectors;
+pub mod instant_distance;
 
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -14,7 +15,7 @@ pub const VECTOR_DIM: usize = 300;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
-pub struct WordChars(Ustr);
+pub struct WordChars(pub Ustr);
 
 impl std::ops::Deref for WordChars {
     type Target = Ustr;
