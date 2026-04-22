@@ -41,13 +41,15 @@ pub fn generate_words_and_synsets() {
 
     enum WordList {
         Google20000,
+        OEDWords,
         WordsAlpha,
     }
 
-    for word_list in [WordList::Google20000, WordList::WordsAlpha] {
+    for word_list in [WordList::Google20000, WordList::OEDWords, WordList::WordsAlpha] {
         let path = match word_list {
             WordList::Google20000 => r"C:\Source\english_word_list\google-20000-english.txt",
             WordList::WordsAlpha => r"C:\Source\english_word_list\words_alpha.txt",
+            WordList::OEDWords => r"C:\Source\english_word_list\OED_words.txt",
         };
 
         let basic_words_text = fs::read_to_string(path).unwrap();
@@ -61,19 +63,19 @@ pub fn generate_words_and_synsets() {
             let mut meanings = vec![];
             let mut root_forms = vec![];
 
-            let mut text = Ustr::from(basic_word);
-
-            
+            let mut text = Ustr::from(basic_word.replace('_', " ").as_str());
 
             for pos in Pos::iter() {
                 for lemma in morphy.lemmas_for(pos, &basic_word, |p, s| word_net.lemma_exists(p, s))
                 {
                     if lemma.source.is_surface() {
                         if let Some(index_entry) = word_net.index_entry(lemma.pos, &lemma.lemma) {
-                            if let Some(spelling) = word_net.spellings.get(&(pos, lemma.lemma.to_string())){
-                                text = Ustr::from(spelling);
+                            if let Some(spelling) =
+                                word_net.spellings.get(&(pos, lemma.lemma.to_string()))
+                            {
+                                text = Ustr::from(spelling.replace('_', " ").as_str());
                             }
-                            
+
                             for offset in index_entry.synset_offsets.iter().copied() {
                                 let ssi = wordnet_types::SynsetId { pos, offset };
                                 used_synset_ids.insert(ssi);
@@ -96,7 +98,7 @@ pub fn generate_words_and_synsets() {
 
             if meanings.is_empty() && root_forms.is_empty() {
                 match word_list {
-                    WordList::Google20000 => {
+                    WordList::Google20000 | WordList::OEDWords => {
                         //println!("Word '{}' not identified", basic_word);
                     }
                     WordList::WordsAlpha => {
@@ -112,6 +114,7 @@ pub fn generate_words_and_synsets() {
                     popularity += 1;
                     p
                 }
+                WordList::OEDWords => None,
                 WordList::WordsAlpha => None,
             };
 
@@ -152,7 +155,7 @@ pub fn generate_words_and_synsets() {
             if let Some(id) = synsets.get(&ssi).copied() {
                 big_word_synsets.push(big_word::SynSet {
                     id,
-                    definition: Ustr::from(synset.gloss.definition) ,
+                    definition: Ustr::from(synset.gloss.definition),
                     part_of_speech: convert_synset_type(&synset.synset_type),
                     words: Arc::new(words),
                     relations: Arc::new(relations),
