@@ -43,13 +43,21 @@ pub fn generate_words_and_synsets() {
         Google20000,
         OEDWords,
         WordsAlpha,
+        CrosswordAnswers,
+        FamousFullNames, //From https://pantheon.world/ Use Tablecruncher to open it
+        FamousLastNames,
     }
 
-    for word_list in [WordList::Google20000, WordList::OEDWords, WordList::WordsAlpha] {
+    for word_list in [WordList::Google20000, WordList::OEDWords, WordList::WordsAlpha, 
+    WordList::CrosswordAnswers, WordList::FamousFullNames, WordList::FamousLastNames
+    ] {
         let path = match word_list {
             WordList::Google20000 => r"C:\Source\english_word_list\google-20000-english.txt",
             WordList::WordsAlpha => r"C:\Source\english_word_list\words_alpha.txt",
             WordList::OEDWords => r"C:\Source\english_word_list\OED_words.txt",
+            WordList::CrosswordAnswers => r"C:\Source\english_word_list\CrosswordAnswers.csv",
+            WordList::FamousFullNames => r"C:\Source\english_word_list\FamousFullNames.txt",
+            WordList::FamousLastNames => r"C:\Source\english_word_list\FamousLastNames.txt",
         };
 
         let basic_words_text = fs::read_to_string(path).unwrap();
@@ -98,7 +106,7 @@ pub fn generate_words_and_synsets() {
 
             if meanings.is_empty() && root_forms.is_empty() {
                 match word_list {
-                    WordList::Google20000 | WordList::OEDWords => {
+                    WordList::Google20000 | WordList::OEDWords | WordList::CrosswordAnswers | WordList::FamousFullNames | WordList::FamousLastNames => {
                         //println!("Word '{}' not identified", basic_word);
                     }
                     WordList::WordsAlpha => {
@@ -116,6 +124,9 @@ pub fn generate_words_and_synsets() {
                 }
                 WordList::OEDWords => None,
                 WordList::WordsAlpha => None,
+                WordList::FamousFullNames => None,
+                WordList::FamousLastNames => None,
+                WordList::CrosswordAnswers => None,
             };
 
             let word = big_word::Word {
